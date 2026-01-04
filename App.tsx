@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Scene } from './components/Scene';
 import { Controls } from './components/Controls';
 import { TerrainParams } from './types';
@@ -52,8 +52,18 @@ const INITIAL_PARAMS: TerrainParams = {
 
 const App: React.FC = () => {
   const [params, setParams] = useState<TerrainParams>(INITIAL_PARAMS);
+  const [deferredParams, setDeferredParams] = useState<TerrainParams>(INITIAL_PARAMS); // Debounced params for the scene
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [desktopMenuOpen, setDesktopMenuOpen] = useState(true);
+
+  // Debounce logic: Only update the 3D scene 200ms after the user stops changing values
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDeferredParams(params);
+    }, 200);
+
+    return () => clearTimeout(handler);
+  }, [params]);
 
   return (
     <div className="relative w-screen h-screen overflow-hidden flex bg-slate-900">
@@ -80,7 +90,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* UI Sidebar */}
+      {/* UI Sidebar - Controls receive 'params' for instant UI feedback */}
       <Controls 
         params={params} 
         setParams={setParams} 
@@ -90,9 +100,9 @@ const App: React.FC = () => {
         setDesktopOpen={setDesktopMenuOpen}
       />
 
-      {/* 3D Viewport */}
+      {/* 3D Viewport - Scene receives 'deferredParams' to prevent crashing */}
       <main className="flex-1 h-full relative">
-        <Scene params={params} />
+        <Scene params={deferredParams} />
       </main>
     </div>
   );
