@@ -288,10 +288,10 @@ export const Controls: React.FC<ControlsProps> = ({
                 label="Resolution (Vertices)"
                 value={params.resolution}
                 min={64}
-                max={2048}
+                max={4096}
                 step={32}
                 onChange={(v: number) => updateParam('resolution', v)}
-                tooltip="Vertex Density. Warning: >1024 may lag heavily."
+                tooltip="Vertex Density. Higher = More Detail but Slower. Warning: High values may freeze the browser."
                 />
                 <Slider
                 label="Seed"

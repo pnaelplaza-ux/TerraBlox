@@ -29,42 +29,80 @@ const StaticWater = ({ mapSize, waterHeight }: { mapSize: number, waterHeight: n
 export const TerrainMesh: React.FC<TerrainMeshProps> = ({ params }) => {
   const meshRef = useRef<THREE.Mesh>(null);
 
-  useEffect(() => {
-    noiseGen.setSeed(params.seed);
-  }, [params.seed]);
+  // Destructure heavy structural params to separate dependencies
+  const {
+    mapSize, resolution, seed, scale, heightScale, octaves, persistence, lacunarity,
+    exaggeration, erosionStrength, riverDepth, generationType, topology, terrainAge,
+    ridgeNoiseStrength, peakRoughness, terraceSteps, detailStrandFrequency
+  } = params;
 
-  const { geometry, colors } = useMemo(() => {
-    const { mapSize, resolution, seed } = params;
-    
+  // Memoize Geometry (Expensive)
+  // Only regenerates if the shape-defining parameters change
+  const geometry = useMemo(() => {
     noiseGen.setSeed(seed);
 
     const geom = new THREE.PlaneGeometry(mapSize, mapSize, resolution, resolution);
     const count = geom.attributes.position.count;
-    
-    const colorArray = new Float32Array(count * 3);
     const pos = geom.attributes.position;
+    
+    // Create a structural params object to pass to logic
+    const structuralParams = {
+        mapSize, resolution, seed, scale, heightScale, octaves, persistence, lacunarity,
+        exaggeration, erosionStrength, riverDepth, generationType, topology, terrainAge,
+        ridgeNoiseStrength, peakRoughness, terraceSteps, detailStrandFrequency
+    } as TerrainParams;
 
     for (let i = 0; i < count; i++) {
         const x = pos.getX(i);
         const y_plane = pos.getY(i); 
 
-        // Get Surface Height and Tectonic Data
-        let { height, tectonicActivity } = getTerrainData(x, y_plane, params);
-
+        // Get Surface Height
+        // Note: getTerrainData internally handles height calc
+        const { height } = getTerrainData(x, y_plane, structuralParams);
         pos.setZ(i, height);
+    }
 
-        // Pass tectonicActivity as extra data for debug visualization
+    geom.computeVertexNormals();
+    return geom;
+  }, [
+    mapSize, resolution, seed, scale, heightScale, octaves, persistence, lacunarity,
+    exaggeration, erosionStrength, riverDepth, generationType, topology, terrainAge,
+    ridgeNoiseStrength, peakRoughness, terraceSteps, detailStrandFrequency
+  ]);
+
+  // Memoize Colors (Lighter, depends on Geometry + Visual Params)
+  // This updates when Water Level, Temperature, or Biome Toggles change without rebuilding the mesh
+  const colors = useMemo(() => {
+    if (!geometry) return new Float32Array(0);
+
+    const count = geometry.attributes.position.count;
+    const colorArray = new Float32Array(count * 3);
+    const pos = geometry.attributes.position;
+    
+    // Ensure noise is seeded for visual consistency
+    noiseGen.setSeed(seed);
+
+    for (let i = 0; i < count; i++) {
+        const x = pos.getX(i);
+        const y_plane = pos.getY(i);
+        const height = pos.getZ(i);
+
+        // We need tectonic activity for debug view, so we grab it if needed.
+        // Optimization: only calculate if viewMode requires it
+        let tectonicActivity = 0;
+        if (params.viewMode === 'Tectonics') {
+           tectonicActivity = getTerrainData(x, y_plane, params).tectonicActivity;
+        }
+
         const { color } = getBiomeColor(height, x, y_plane, params, THREE, { tectonicActivity });
 
         colorArray[i * 3] = color.r;
         colorArray[i * 3 + 1] = color.g;
         colorArray[i * 3 + 2] = color.b;
     }
-
-    geom.computeVertexNormals();
     
-    return { geometry: geom, colors: colorArray };
-  }, [params]);
+    return colorArray;
+  }, [geometry, params]); // Re-runs if geometry changes OR if any param (like waterLevel/visuals) changes
 
   useEffect(() => {
     if (meshRef.current) {
@@ -72,7 +110,6 @@ export const TerrainMesh: React.FC<TerrainMeshProps> = ({ params }) => {
     }
   }, [colors]);
 
-  // Exact Water Height Calculation matching Lua Script: WATER_LEVEL_RATIO * HEIGHT_SCALE
   const waterHeight = params.waterLevel * params.heightScale;
 
   return (

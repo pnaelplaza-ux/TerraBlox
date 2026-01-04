@@ -15,21 +15,14 @@ export const Scene: React.FC<SceneProps> = ({ params }) => {
   // Calculate Sun Position based on Time of Day (0-24)
   const sunPosition = useMemo(() => {
     // 12 = Noon (Top), 6 = Sunrise, 18 = Sunset
-    // Angle: -PI/2 (0h) to 3PI/2 (24h)
-    // Noon (12h) -> PI/2
-    
-    // Map time 0..24 to 0..2PI. 
-    // Shift so 6am is rise (0 rads) -> NO, Sky expects coords.
-    
-    const timeRatio = (timeOfDay - 6) / 24; // 6am = 0, 12pm = 0.25, 6pm = 0.5
-    const theta = timeRatio * Math.PI * 2; // Full circle
+    const timeRatio = (timeOfDay - 6) / 24; 
+    const theta = timeRatio * Math.PI * 2; 
     
     const distance = 4000;
     const x = Math.cos(theta) * distance;
     const y = Math.sin(theta) * distance;
     const z = -1000; // Slight tilt
     
-    // Clamp Y to simulate night (below horizon)
     return new THREE.Vector3(x, y, z);
   }, [timeOfDay]);
 
@@ -51,12 +44,12 @@ export const Scene: React.FC<SceneProps> = ({ params }) => {
           } else {
              // Noon
              sColor.set("#ffffff");
-             fColor.set("#bfdbfe"); // Light blue fog
+             fColor.set("#bfdbfe"); 
              aIntensity = 0.6;
           }
       } else {
           // Night
-          sColor.set("#222244"); // Moonlight
+          sColor.set("#222244"); 
           fColor.set("#050510");
           aIntensity = 0.1;
           stars = 1;
@@ -67,7 +60,12 @@ export const Scene: React.FC<SceneProps> = ({ params }) => {
 
   return (
     <div className="w-full h-full bg-black">
-      <Canvas shadows camera={{ position: [500, 500, 500], fov: 45, far: 20000 }}>
+      <Canvas 
+        shadows 
+        dpr={[1, 1.5]} // Performance: Limit pixel ratio to 1.5 to avoid heavy load on retina screens
+        camera={{ position: [500, 500, 500], fov: 45, far: 20000 }}
+        gl={{ powerPreference: "high-performance", antialias: false }} // Performance: Disable MSAA if needed, prefer GPU power
+      >
         {/* Environment & Lighting */}
         <Sky 
             sunPosition={sunPosition} 
@@ -94,7 +92,7 @@ export const Scene: React.FC<SceneProps> = ({ params }) => {
             intensity={timeOfDay < 6 || timeOfDay > 18 ? 0.2 : 1.2} 
             color={sunColor} 
             castShadow 
-            shadow-mapSize={[4096, 4096]} 
+            shadow-mapSize={[2048, 2048]} // Performance: Reduced from 4096 to 2048
             shadow-camera-far={10000}
             shadow-camera-left={-4000}
             shadow-camera-right={4000}
@@ -104,7 +102,6 @@ export const Scene: React.FC<SceneProps> = ({ params }) => {
             shadow-normalBias={0.06}
         />
         
-        {/* Controls - Switched to MapControls for RTS-style navigation (Pan: Left Click, Rotate: Right Click) */}
         <MapControls 
             makeDefault
             enableDamping 
@@ -112,15 +109,13 @@ export const Scene: React.FC<SceneProps> = ({ params }) => {
             maxPolarAngle={Math.PI / 2 - 0.05} 
             minDistance={20}
             maxDistance={8000}
-            screenSpacePanning={false} // Prevents moving up/down when panning
+            screenSpacePanning={false}
         />
 
-        {/* Content */}
         <group>
              <TerrainMesh params={params} />
         </group>
 
-        {/* Fog for depth - adjusted for larger view distance */}
         <fog attach="fog" args={[fogColor, 2000, 18000]} />
       </Canvas>
       
