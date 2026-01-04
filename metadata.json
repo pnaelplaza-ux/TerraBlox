@@ -1,0 +1,5 @@
+{
+  "name": "Terrablox",
+  "description": "An ultra-realistic, parametrically generated 3D terrain visualizer. Customize noise algorithms, octaves, and biomes, then export a Lua script to recreate your world in Roblox Studio.",
+  "requestFramePermissions": []
+}
